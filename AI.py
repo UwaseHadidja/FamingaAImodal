@@ -517,3 +517,39 @@ if __name__ == '__main__':
     
     # Run Flask app
     app.run(host='0.0.0.0', port=port, debug=False)
+
+
+
+
+
+from flask import Flask, jsonify
+import os
+from datetime import datetime
+
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    """Root endpoint - API documentation"""
+    return jsonify({
+        'name': 'Faminga AI Irrigation API',
+        'version': '1.0.0',
+        'status': 'online',
+        'endpoints': {
+            'health': '/health',
+            'irrigation_advice': '/api/v1/irrigation/advice',
+            'crop_profiles': '/api/v1/crops',
+            'decision_history': '/api/v1/history'
+        },
+        'timestamp': datetime.now().isoformat()
+    })
+
+
+@app.route('/health')
+def health():
+    return jsonify({'status': 'healthy'})
+
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
