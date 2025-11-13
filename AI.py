@@ -1,4 +1,3 @@
-
 from flask import Flask, request, jsonify
 from pyngrok import ngrok
 from datetime import datetime, timedelta
@@ -6,11 +5,27 @@ from typing import Dict, List, Optional
 import numpy as np
 from dataclasses import dataclass
 from enum import Enum
+import os
 
 app = Flask(__name__)
 
-public_url = ngrok.connect(5000)
-print(" * ngrok tunnel:", public_url)
+# Only use ngrok if authtoken is provided via environment variable
+authtoken = os.environ.get('NGROK_AUTHTOKEN')
+if authtoken:
+    ngrok.set_auth_token(authtoken)
+    public_url = ngrok.connect(5000)
+    print(" * ngrok tunnel:", public_url)
+else:
+    print(" * Running without ngrok tunnel")
+
+# Use PORT environment variable from Render, default to 5000 for local
+port = int(os.environ.get('PORT', 5000))
+
+# Your other code here...
+
+# At the end of your file, make sure you have:
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=port)
 
 class IrrigationAdvice(Enum):
     """Irrigation decision types"""
