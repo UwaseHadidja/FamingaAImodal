@@ -470,7 +470,17 @@ def get_decision_history():
 
 
 
-from flask_ngrok import run_with_ngrok
-
-run_with_ngrok(app)
-app.run()
+if __name__ == '__main__':
+    # Get PORT from environment (Render provides this)
+    port = int(os.environ.get('PORT', 5000))
+    
+    # Only use ngrok if authtoken is provided
+    authtoken = os.environ.get('NGROK_AUTHTOKEN')
+    if authtoken:
+        from pyngrok import ngrok
+        ngrok.set_auth_token(authtoken)
+        public_url = ngrok.connect(port)
+        print(f" * ngrok tunnel: {public_url}")
+    
+    # Run Flask app
+    app.run(host='0.0.0.0', port=port, debug=False)
