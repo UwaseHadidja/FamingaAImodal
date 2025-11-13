@@ -470,6 +470,39 @@ def get_decision_history():
 
 
 
+@app.route('/')
+def home():
+    """Root endpoint - API documentation"""
+    return jsonify({
+        'name': 'Faminga AI Irrigation API',
+        'version': '1.0.0',
+        'status': 'online',
+        'endpoints': {
+            'health': {
+                'path': '/health',
+                'method': 'GET',
+                'description': 'Health check endpoint'
+            },
+            'irrigation_advice': {
+                'path': '/api/v1/irrigation/advice',
+                'method': 'POST',
+                'description': 'Get irrigation advice based on soil and weather data'
+            },
+            'crop_profiles': {
+                'path': '/api/v1/crops',
+                'method': 'GET',
+                'description': 'Get available crop profiles'
+            },
+            'decision_history': {
+                'path': '/api/v1/history',
+                'method': 'GET',
+                'description': 'Get recent decision history'
+            }
+        },
+        'documentation': 'Send POST request to /api/v1/irrigation/advice with soil_data and weather_data'
+    })
+
+
 if __name__ == '__main__':
     # Get PORT from environment (Render provides this)
     port = int(os.environ.get('PORT', 5000))
