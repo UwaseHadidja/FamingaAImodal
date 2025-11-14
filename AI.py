@@ -1,31 +1,12 @@
 from flask import Flask, request, jsonify
-from pyngrok import ngrok
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 import numpy as np
 from dataclasses import dataclass
 from enum import Enum
-import os
 
 app = Flask(__name__)
 
-# Only use ngrok if authtoken is provided via environment variable
-authtoken = os.environ.get('NGROK_AUTHTOKEN')
-if authtoken:
-    ngrok.set_auth_token(authtoken)
-    public_url = ngrok.connect(5000)
-    print(" * ngrok tunnel:", public_url)
-else:
-    print(" * Running without ngrok tunnel")
-
-# Use PORT environment variable from Render, default to 5000 for local
-port = int(os.environ.get('PORT', 5000))
-
-# Your other code here...
-
-# At the end of your file, make sure you have:
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=port)
 
 class IrrigationAdvice(Enum):
     """Irrigation decision types"""
@@ -469,7 +450,6 @@ def get_decision_history():
     })
 
 
-
 @app.route('/')
 def home():
     """Root endpoint - API documentation"""
@@ -498,12 +478,13 @@ def home():
                 'method': 'GET',
                 'description': 'Get recent decision history'
             }
-        },
-        'documentation': 'Send POST request to /api/v1/irrigation/advice with soil_data and weather_data'
+        }
     })
 
 
 if __name__ == '__main__':
+    import os
+    
     # Get PORT from environment (Render provides this)
     port = int(os.environ.get('PORT', 5000))
     
@@ -519,37 +500,3 @@ if __name__ == '__main__':
     app.run(host='0.0.0.0', port=port, debug=False)
 
 
-
-
-
-from flask import Flask, jsonify
-import os
-from datetime import datetime
-
-app = Flask(__name__)
-
-@app.route('/')
-def home():
-    """Root endpoint - API documentation"""
-    return jsonify({
-        'name': 'Faminga AI Irrigation API',
-        'version': '1.0.0',
-        'status': 'online',
-        'endpoints': {
-            'health': '/health',
-            'irrigation_advice': '/api/v1/irrigation/advice',
-            'crop_profiles': '/api/v1/crops',
-            'decision_history': '/api/v1/history'
-        },
-        'timestamp': datetime.now().isoformat()
-    })
-
-
-@app.route('/health')
-def health():
-    return jsonify({'status': 'healthy'})
-
-
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
