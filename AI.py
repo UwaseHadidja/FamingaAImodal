@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from pyngrok import ngrok
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 import numpy as np
@@ -7,6 +8,8 @@ from enum import Enum
 
 app = Flask(__name__)
 
+public_url = ngrok.connect(5000)
+print(" * ngrok tunnel:", public_url)
 
 class IrrigationAdvice(Enum):
     """Irrigation decision types"""
@@ -51,16 +54,16 @@ CROP_PROFILES = {
         moisture_optimal_min=60, moisture_optimal_max=80,
         moisture_critical_min=40, moisture_critical_max=90,
         ph_optimal_min=6.0, ph_optimal_max=6.8,
-        nitrogen_min=100, phosphorus_min=40, potassium_min=150,
+        nitrogen_min=100, phosphorus_min=40, potassium_min=144,
         temp_optimal_min=18, temp_optimal_max=28,
         growth_stage_factor={'seedling': 0.7, 'vegetative': 1.0, 'flowering': 1.2, 'fruiting': 1.3}
     ),
     'maize': CropProfile(
         name='Maize',
-        moisture_optimal_min=55, moisture_optimal_max=75,
+        moisture_optimal_min=41, moisture_optimal_max=80,
         moisture_critical_min=35, moisture_critical_max=85,
-        ph_optimal_min=5.8, ph_optimal_max=7.0,
-        nitrogen_min=120, phosphorus_min=50, potassium_min=100,
+        ph_optimal_min=5.5, ph_optimal_max=7.0,
+        nitrogen_min=41, phosphorus_min=46, potassium_min=40,
         temp_optimal_min=20, temp_optimal_max=30,
         growth_stage_factor={'seedling': 0.6, 'vegetative': 1.0, 'tasseling': 1.4, 'grain_fill': 1.2}
     ),
@@ -69,8 +72,8 @@ CROP_PROFILES = {
         moisture_optimal_min=65, moisture_optimal_max=85,
         moisture_critical_min=45, moisture_critical_max=90,
         ph_optimal_min=5.0, ph_optimal_max=6.5,
-        nitrogen_min=110, phosphorus_min=45, potassium_min=180,
-        temp_optimal_min=15, temp_optimal_max=24,
+        nitrogen_min=100, phosphorus_min=90, potassium_min=120,
+        temp_optimal_min=16, temp_optimal_max=20,
         growth_stage_factor={'planting': 0.5, 'vegetative': 0.8, 'tuber_init': 1.2, 'bulking': 1.4}
     ),
     'lettuce': CropProfile(
@@ -78,8 +81,8 @@ CROP_PROFILES = {
         moisture_optimal_min=70, moisture_optimal_max=85,
         moisture_critical_min=50, moisture_critical_max=90,
         ph_optimal_min=6.0, ph_optimal_max=7.0,
-        nitrogen_min=80, phosphorus_min=30, potassium_min=120,
-        temp_optimal_min=15, temp_optimal_max=20,
+        nitrogen_min=40, phosphorus_min=20, potassium_min=120,
+        temp_optimal_min=16, temp_optimal_max=24,
         growth_stage_factor={'seedling': 0.6, 'vegetative': 1.0, 'heading': 1.1}
     ),
     'default': CropProfile(
@@ -450,53 +453,8 @@ def get_decision_history():
     })
 
 
-@app.route('/')
-def home():
-    """Root endpoint - API documentation"""
-    return jsonify({
-        'name': 'Faminga AI Irrigation API',
-        'version': '1.0.0',
-        'status': 'online',
-        'endpoints': {
-            'health': {
-                'path': '/health',
-                'method': 'GET',
-                'description': 'Health check endpoint'
-            },
-            'irrigation_advice': {
-                'path': '/api/v1/irrigation/advice',
-                'method': 'POST',
-                'description': 'Get irrigation advice based on soil and weather data'
-            },
-            'crop_profiles': {
-                'path': '/api/v1/crops',
-                'method': 'GET',
-                'description': 'Get available crop profiles'
-            },
-            'decision_history': {
-                'path': '/api/v1/history',
-                'method': 'GET',
-                'description': 'Get recent decision history'
-            }
-        }
-    })
 
+from flask_ngrok import run_with_ngrok
 
-if __name__ == '__main__':
-    import os
-    
-    # Get PORT from environment (Render provides this)
-    port = int(os.environ.get('PORT', 5000))
-    
-    # Only use ngrok if authtoken is provided
-    authtoken = os.environ.get('NGROK_AUTHTOKEN')
-    if authtoken:
-        from pyngrok import ngrok
-        ngrok.set_auth_token(authtoken)
-        public_url = ngrok.connect(port)
-        print(f" * ngrok tunnel: {public_url}")
-    
-    # Run Flask app
-    app.run(host='0.0.0.0', port=port, debug=False)
-
-
+run_with_ngrok(app)
+app.run()
