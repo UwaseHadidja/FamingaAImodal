@@ -216,8 +216,8 @@ class IrrigationDecisionEngine:
             reasons.append(f"Recommended irrigation: {irrigation_amount:.1f}mm for {irrigation_duration:.0f} minutes")
         elif decision == IrrigationAdvice.HOLD:
             # Add specific reasons for holding
-            if moisture_status in ['OPTIMAL']:
-                reasons.append(f"Holding: Moisture optimal at {moisture:.1f}%")
+            if moisture_status == 'OPTIMAL':
+                reasons.append(f"Holding: Moisture optimal at {moisture:.1f}% (range: {optimal_min_adjusted:.1f}-{optimal_max_adjusted:.1f}%)")
             elif moisture_status == 'HIGH':
                 reasons.append(f"Holding: Moisture high at {moisture:.1f}%")
             elif weather_status in ['HEAVY_RAIN_EXPECTED', 'RAIN_LIKELY']:
@@ -226,6 +226,10 @@ class IrrigationDecisionEngine:
                 reasons.append(f"Holding: High rain probability ({rain_probability}%)")
             elif moisture_status == 'LOW' and rain_probability >= 30:
                 reasons.append(f"Holding: Monitoring situation with {rain_probability}% rain chance and low moisture")
+
+            # If no specific reason was added yet, add a general one
+            if not any("Holding:" in r for r in reasons):
+                reasons.append(f"Holding: Current conditions stable, no irrigation needed")
         elif decision == IrrigationAdvice.ALERT:
             reasons.append("ALERT: Immediate attention required - check critical conditions above")
 
