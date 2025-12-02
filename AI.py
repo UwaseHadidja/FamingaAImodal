@@ -1,5 +1,4 @@
 from flask import Flask, request, jsonify
-from pyngrok import ngrok
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 import numpy as np
@@ -8,8 +7,6 @@ from enum import Enum
 
 app = Flask(__name__)
 
-public_url = ngrok.connect(5000)
-print(" * ngrok tunnel:", public_url)
 
 class IrrigationAdvice(Enum):
     """Irrigation decision types"""
