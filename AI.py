@@ -148,12 +148,19 @@ class IrrigationDecisionEngine:
         # 1. SOIL MOISTURE ANALYSIS
         moisture_status = self._analyze_moisture(moisture, crop, growth_stage)
 
+        # Get adjusted thresholds for current growth stage
+        stage_factor = crop.growth_stage_factor.get(growth_stage, 1.0)
+        optimal_min_adjusted = crop.moisture_optimal_min * stage_factor
+        optimal_max_adjusted = crop.moisture_optimal_max * stage_factor
+
         if moisture < crop.moisture_critical_min:
             alerts.append(AlertType.LOW_MOISTURE.value)
             reasons.append(f"Critical: Moisture at {moisture:.1f}% (min: {crop.moisture_critical_min}%)")
         elif moisture > crop.moisture_critical_max:
             alerts.append(AlertType.HIGH_MOISTURE.value)
             reasons.append(f"Critical: Moisture at {moisture:.1f}% (max: {crop.moisture_critical_max}%)")
+        elif moisture_status == 'LOW':
+            reasons.append(f"Low moisture: {moisture:.1f}% (optimal for {growth_stage}: {optimal_min_adjusted:.1f}-{optimal_max_adjusted:.1f}%)")
 
         # 2. WEATHER ANALYSIS
         weather_status = self._analyze_weather(weather_data)
@@ -161,6 +168,8 @@ class IrrigationDecisionEngine:
         if rain_probability > 60:
             alerts.append(AlertType.RAIN_EXPECTED.value)
             reasons.append(f"Rain expected: {rain_probability}% chance, {rain_amount:.1f}mm")
+        elif rain_probability > 30:
+            reasons.append(f"Moderate rain chance: {rain_probability}%")
 
         # 3. NUTRIENT ANALYSIS
         nutrient_status = self._analyze_nutrients(nitrogen, phosphorus, potassium, crop)
@@ -185,14 +194,14 @@ class IrrigationDecisionEngine:
             alerts.append(AlertType.EXTREME_TEMPERATURE.value)
             reasons.append(f"Soil temp: {soil_temp:.1f}°C (optimal: {crop.temp_optimal_min}-{crop.temp_optimal_max}°C)")
 
-        # 6. MAKE DECISION
+        # 6. CALCULATE EVAPOTRANSPIRATION (ET)
+        et_rate = self._calculate_et(temperature, humidity, wind_speed, growth_stage, crop)
+
+        # 7. MAKE DECISION
         decision = self._make_decision(
             moisture, moisture_status, weather_status,
-            rain_probability, crop, alerts
+            rain_probability, crop, alerts, reasons, et_rate
         )
-
-        # 7. CALCULATE EVAPOTRANSPIRATION (ET)
-        et_rate = self._calculate_et(temperature, humidity, wind_speed, growth_stage, crop)
 
         # 8. IRRIGATION RECOMMENDATION
         irrigation_amount = 0
@@ -200,11 +209,25 @@ class IrrigationDecisionEngine:
 
         if decision == IrrigationAdvice.IRRIGATE:
             # Calculate how much water needed
-            moisture_deficit = crop.moisture_optimal_max - moisture
+            moisture_deficit = optimal_max_adjusted - moisture
             irrigation_amount = (moisture_deficit / 100) * field_capacity
             irrigation_duration = self._calculate_duration(irrigation_amount)
 
             reasons.append(f"Recommended irrigation: {irrigation_amount:.1f}mm for {irrigation_duration:.0f} minutes")
+        elif decision == IrrigationAdvice.HOLD:
+            # Add specific reasons for holding
+            if moisture_status in ['OPTIMAL']:
+                reasons.append(f"Holding: Moisture optimal at {moisture:.1f}%")
+            elif moisture_status == 'HIGH':
+                reasons.append(f"Holding: Moisture high at {moisture:.1f}%")
+            elif weather_status in ['HEAVY_RAIN_EXPECTED', 'RAIN_LIKELY']:
+                reasons.append(f"Holding: Rain expected ({rain_probability}% chance)")
+            elif rain_probability > 60:
+                reasons.append(f"Holding: High rain probability ({rain_probability}%)")
+            elif moisture_status == 'LOW' and rain_probability >= 30:
+                reasons.append(f"Holding: Monitoring situation with {rain_probability}% rain chance and low moisture")
+        elif decision == IrrigationAdvice.ALERT:
+            reasons.append("ALERT: Immediate attention required - check critical conditions above")
 
         # Build response
         response = {
@@ -244,7 +267,8 @@ class IrrigationDecisionEngine:
             'recommendations': {
                 'irrigation_amount_mm': irrigation_amount,
                 'irrigation_duration_minutes': irrigation_duration,
-                'next_check_hours': self._next_check_interval(decision, weather_status)
+                'next_check_hours': self._next_check_interval(decision, weather_status),
+                'action_summary': self._generate_action_summary(decision, moisture_status, rain_probability)
             }
         }
 
@@ -302,7 +326,8 @@ class IrrigationDecisionEngine:
 
     def _make_decision(self, moisture: float, moisture_status: str,
                       weather_status: str, rain_prob: float,
-                      crop: CropProfile, alerts: List) -> IrrigationAdvice:
+                      crop: CropProfile, alerts: List, reasons: List,
+                      et_rate: float) -> IrrigationAdvice:
         """Make final irrigation decision"""
 
         # ALERT conditions (critical issues)
@@ -326,7 +351,7 @@ class IrrigationDecisionEngine:
         if moisture_status == 'LOW' and rain_prob < 30:
             return IrrigationAdvice.IRRIGATE
 
-        # Default to HOLD if uncertain
+        # Default to HOLD if uncertain (e.g., LOW moisture but moderate rain chance)
         return IrrigationAdvice.HOLD
 
     def _calculate_et(self, temp: float, humidity: float,
@@ -356,6 +381,22 @@ class IrrigationDecisionEngine:
             return 6  # Check after rain
         else:
             return 24  # Daily check
+
+    def _generate_action_summary(self, decision: IrrigationAdvice,
+                                moisture_status: str, rain_prob: float) -> str:
+        """Generate human-readable action summary"""
+        if decision == IrrigationAdvice.IRRIGATE:
+            return "Irrigate now - soil moisture below optimal levels"
+        elif decision == IrrigationAdvice.ALERT:
+            return "ALERT: Critical conditions detected - immediate attention required"
+        elif decision == IrrigationAdvice.HOLD:
+            if moisture_status in ['OPTIMAL', 'HIGH']:
+                return "Hold irrigation - soil moisture adequate"
+            elif rain_prob > 60:
+                return "Hold irrigation - rain expected soon"
+            else:
+                return "Hold irrigation - monitoring weather conditions"
+        return "Continue monitoring"
 
 
 # Initialize decision engine
